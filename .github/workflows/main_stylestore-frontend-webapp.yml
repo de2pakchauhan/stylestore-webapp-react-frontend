@@ -15,42 +15,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18.x'
 
-      - name: Install dependencies and build
+      - name: Install and Build
         run: |
-          npm install
+          npm ci
           npm run build
 
-      - name: Zip only dist folder for deployment
-        run: |
-          cd dist
-          zip -r ../release.zip .
-
-      - name: Upload artifact for deployment
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: release.zip
+          path: dist/
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+      name: Production
 
     steps:
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
-
-      - name: Unzip artifact
-        run: unzip release.zip -d .
+          path: ./dist
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
@@ -58,5 +50,5 @@ jobs:
         with:
           app-name: 'stylestore-frontend-webapp'
           slot-name: 'Production'
-          package: .
+          package: './dist'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B50C100DE7D245969110FCA4BDD3B1E7 }}
