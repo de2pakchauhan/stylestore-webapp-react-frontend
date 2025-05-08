@@ -32,7 +32,7 @@ export default function Orders() {
     const fetchOrders = async () => {
       try {
         const response = await axios.get<ApiOrder[]>(
-          'https://backend-orders-webapp-h6gzajarh8gdaaf5.canadacentral-01.azurewebsites.net/api/orders',
+          'https://backend-orders-webapp-h6gzajarh8gdaaf5.canadacentral-01.azurewebsites.net/api/orders/',
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
