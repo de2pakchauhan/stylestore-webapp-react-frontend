@@ -6,7 +6,7 @@ import axios from 'axios';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrency } from '../context/CurrencyContext';
-import OrderSuccessModal from './OrderSuccessModal'; // Import your OrderSuccessModal component
+import OrderSuccessModal from './OrderSuccessModal';
 
 interface CheckoutPageProps {
   onOrderSuccess: () => void;
@@ -19,7 +19,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ onOrderSuccess, onClose }) 
   const token = localStorage.getItem('token');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileError, setProfileError] = useState('');
-  const [isOrderSuccess, setIsOrderSuccess] = useState(false); // State for Order Success Modal
+  const [isOrderSuccess, setIsOrderSuccess] = useState(false);
   const navigate = useNavigate();
   const { convertPrice, selectedSymbol } = useCurrency();
 
@@ -84,23 +84,38 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ onOrderSuccess, onClose }) 
             product_id: item.id,
             quantity: item.quantity,
             price: convertedPrice,
-            currency: selectedSymbol // 💰 Pass the currency symbol
+            currency: selectedSymbol
           };
 
           await axios.post('https://backend-orders-webapp-h6gzajarh8gdaaf5.canadacentral-01.azurewebsites.net/api/orders', orderData, {
             headers: {
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000
           });
         })
       );
 
       clearCart();
-      setIsOrderSuccess(true); // Show the success modal
+      setIsOrderSuccess(true);
+      onOrderSuccess();
     } catch (error) {
       console.error('Checkout error:', error);
-      const errorMessage = error.response?.data?.detail || 'Checkout failed. Please try again.';
+      let errorMessage = 'Checkout failed. Please try again.';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNABORTED') {
+          errorMessage = 'Request timed out. Please check your connection.';
+        } else if (error.response) {
+          errorMessage = error.response.data?.detail || error.response.statusText;
+        } else if (error.request) {
+          errorMessage = 'No response from server. Please try again later.';
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       alert(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -219,7 +234,11 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ onOrderSuccess, onClose }) 
           <button
             onClick={handleCheckout}
             disabled={isSubmitting || !validateProfile()}
-            className={`w-full py-3 px-6 rounded-lg font-semibold transition-all ${validateProfile() ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'} ${isSubmitting ? 'opacity-75' : ''}`}
+            className={`w-full py-3 px-6 rounded-lg font-semibold transition-all ${
+              validateProfile() 
+                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+            } ${isSubmitting ? 'opacity-75' : ''}`}
           >
             {isSubmitting
               ? 'Processing Your Order...'
@@ -230,8 +249,13 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ onOrderSuccess, onClose }) 
         </>
       )}
 
-      {/* Order Success Modal */}
-      <OrderSuccessModal isOpen={isOrderSuccess} onClose={() => setIsOrderSuccess(false)} />
+      <OrderSuccessModal 
+        isOpen={isOrderSuccess} 
+        onClose={() => {
+          setIsOrderSuccess(false);
+          onClose();
+        }}
+      />
     </div>
   );
 };
